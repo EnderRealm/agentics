@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION=2
+VERSION=3
 
 # Colors
 RED='\033[0;31m'
@@ -248,6 +248,7 @@ bd init --quiet
 bd hooks install --quiet 2>/dev/null || true
 bd migrate sync beads-sync --quiet 2>/dev/null || true
 bd export --quiet 2>/dev/null || true
+bd daemon start --auto-commit --auto-push --quiet 2>/dev/null || true
 log "Initialized Beads issue tracker"
 
 # Initial commit
