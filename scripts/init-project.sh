@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION=7
+VERSION=8
 
 # Colors
 RED='\033[0;31m'
@@ -257,8 +257,10 @@ fi
 # Set up beads sync branch (requires initial commit to exist)
 bd migrate sync beads-sync --quiet
 bd hooks install --quiet 2>/dev/null || true
-bd daemon start --auto-commit --auto-push --quiet 2>/dev/null || true
 log "Configured Beads sync branch"
+
+# Start daemon with auto-sync (after sync branch is fully configured)
+bd daemon start --auto-commit --auto-push || warn "Daemon start failed - run: bd daemon start --auto-commit --auto-push"
 
 # Create initial epic
 bd create "Brainstorm ${PROJECT_NAME} plan" --type epic --quiet 2>/dev/null || true
