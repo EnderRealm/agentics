@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION=12
+VERSION=13
 
 # Colors
 RED='\033[0;31m'
@@ -240,7 +240,7 @@ if [[ "$NO_PUSH" == false ]]; then
 fi
 
 # Initialize Beads
-bd init --quiet
+bd init --quiet --no-daemon
 log "Initialized Beads"
 
 # Initial commit (required before creating beads-sync branch)
@@ -255,12 +255,12 @@ if [[ "$NO_PUSH" == false ]]; then
 fi
 
 # Set up beads sync branch (requires initial commit to exist)
-bd migrate sync beads-sync --quiet
-bd hooks install --quiet 2>/dev/null || true
+bd migrate sync beads-sync --quiet --no-daemon
+bd hooks install --quiet --no-daemon 2>/dev/null || true
 log "Configured Beads sync branch"
 
 # Create initial epic
-bd create "Brainstorm ${PROJECT_NAME} plan" --type epic --quiet 2>/dev/null || true
+bd create "Brainstorm ${PROJECT_NAME} plan" --type epic --quiet --no-daemon 2>/dev/null || true
 log "Created initial epic"
 
 echo ""
