@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION=3
+VERSION=4
 
 # Colors
 RED='\033[0;31m'
@@ -243,24 +243,27 @@ if [[ "$NO_PUSH" == false ]]; then
     log "Created GitHub repository (SSH)"
 fi
 
-# Initialize Beads (after remote exists)
+# Initialize Beads
 bd init --quiet
-bd hooks install --quiet 2>/dev/null || true
-bd migrate sync beads-sync --quiet 2>/dev/null || true
-bd export --quiet 2>/dev/null || true
-bd daemon start --auto-commit --auto-push --quiet 2>/dev/null || true
-log "Initialized Beads issue tracker"
+log "Initialized Beads"
 
-# Initial commit
+# Initial commit (required before creating beads-sync branch)
 git add -A
 git commit -q -m "Initial project setup"
 log "Created initial commit"
 
-# Push to GitHub
+# Push main branch first (required for beads-sync to have upstream)
 if [[ "$NO_PUSH" == false ]]; then
     git push -u origin main -q
     log "Pushed to GitHub"
 fi
+
+# Set up beads sync branch (requires initial commit to exist)
+bd migrate sync beads-sync --quiet
+bd hooks install --quiet 2>/dev/null || true
+bd export --quiet 2>/dev/null || true
+bd daemon start --auto-commit --auto-push --quiet 2>/dev/null || true
+log "Configured Beads sync branch"
 
 echo ""
 log "Project '$PROJECT_NAME' initialized successfully!"
