@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION=19
+VERSION=20
 
 # Colors
 RED='\033[0;31m'
@@ -181,9 +181,107 @@ cp .example.env .env
 
 ## Development
 
-<!-- Add development instructions -->
+\`\`\`bash
+docker compose up -d    # Start services
+docker compose logs -f  # View logs
+docker compose down     # Stop services
+\`\`\`
+
+<!-- Add additional development instructions -->
 EOF
 log "Created README.md"
+
+# Create Dockerfile
+cat > Dockerfile <<'EOF'
+# syntax=docker/dockerfile:1
+
+# ============================================
+# Update this Dockerfile for your project
+# ============================================
+
+# Example: Node.js
+# FROM node:20-alpine
+# WORKDIR /app
+# COPY package*.json ./
+# RUN npm ci
+# COPY . .
+# CMD ["npm", "start"]
+
+# Example: Python
+# FROM python:3.12-slim
+# WORKDIR /app
+# COPY requirements.txt .
+# RUN pip install -r requirements.txt
+# COPY . .
+# CMD ["python", "main.py"]
+
+# Example: Go
+# FROM golang:1.22-alpine AS builder
+# WORKDIR /app
+# COPY go.* ./
+# RUN go mod download
+# COPY . .
+# RUN go build -o main .
+# FROM alpine:latest
+# COPY --from=builder /app/main /main
+# CMD ["/main"]
+
+FROM alpine:latest
+CMD ["echo", "Update Dockerfile for your project"]
+EOF
+log "Created Dockerfile"
+
+# Create docker-compose.yml
+cat > docker-compose.yml <<EOF
+services:
+  app:
+    build: .
+    env_file: .env
+    # ports:
+    #   - "3000:3000"
+    # volumes:
+    #   - .:/app
+    # depends_on:
+    #   - db
+
+  # ----------------------------------------
+  # Uncomment services as needed
+  # ----------------------------------------
+
+  # db:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: \${DB_USER:-postgres}
+  #     POSTGRES_PASSWORD: \${DB_PASSWORD:-postgres}
+  #     POSTGRES_DB: \${DB_NAME:-$PROJECT_NAME}
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "6379:6379"
+
+# volumes:
+#   pgdata:
+EOF
+log "Created docker-compose.yml"
+
+# Create .dockerignore
+cat > .dockerignore <<'EOF'
+.git
+.gitignore
+.env
+.env.*
+*.md
+.tickets/
+.idea/
+.vscode/
+*.log
+EOF
+log "Created .dockerignore"
 
 # GitHub repo creation
 if [[ "$NO_PUSH" == false ]]; then
