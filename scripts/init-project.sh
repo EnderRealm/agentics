@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+log() { echo -e "${GREEN}[✓]${NC} $1"; }
+warn() { echo -e "${YELLOW}[!]${NC} $1"; }
+error() { echo -e "${RED}[✗]${NC} $1" >&2; exit 1; }
+info() { echo -e "${BLUE}[i]${NC} $1"; }
+
+SCRIPT_REPO="https://raw.githubusercontent.com/EnderRealm/agentics/main/init-project.sh"
+
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") <project-name> [options]
+
+Options:
+    --private       Create private GitHub repo (default: public)
+    --no-push       Skip GitHub repo creation and push
+    --no-update     Skip auto-update check
+    --description   Repository description
+    -h, --help      Show this help
+
+Examples:
+    $(basename "$0") my-project
+    $(basename "$0") my-project --private --description "My awesome project"
+EOF
+    exit 0
+}
+
+auto_update() {
+    local tmp remote_hash local_hash
+    tmp=$(mktemp)
+    
+    if curl -fsSL "$SCRIPT_REPO" -o "$tmp" 2>/dev/null; then
+        if [[ -s "$tmp" ]]; then
+            remote_hash=$(sha256sum "$tmp" | cut -d' ' -f1)
+            local_hash=$(sha256sum "$0" | cut -d' ' -f1)
+            
+            if [[ "$remote_hash" != "$local_hash" ]]; then
+                mv "$tmp" "$0"
+                chmod +x "$0"
+                warn "Updated to new version. Re-running..."
+                exec "$0" --no-update "$@"
+            fi
+        fi
+    fi
+    rm -f "$tmp" 2>/dev/null
+}
+
+# Defaults
+PRIVATE=false
+NO_PUSH=false
+NO_UPDATE=false
+DESCRIPTION=""
+ORIGINAL_ARGS=("$@")
+
+# Parse args
+[[ $# -eq 0 ]] && usage
+PROJECT_NAME=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --private) PRIVATE=true; shift ;;
+        --no-push) NO_PUSH=true; shift ;;
+        --no-update) NO_UPDATE=true; shift ;;
+        --description) DESCRIPTION="$2"; shift 2 ;;
+        -h|--help) usage ;;
+        -*) error "Unknown option: $1" ;;
+        *) PROJECT_NAME="$1"; shift ;;
+    esac
+done
+
+# Auto-update check
+[[ "$NO_UPDATE" == false ]] && auto_update "${ORIGINAL_ARGS[@]}"
+
+[[ -z "$PROJECT_NAME" ]] && error "Project name required"
+
+# Validate project name
+if [[ ! "$PROJECT_NAME" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    error "Invalid project name. Use alphanumeric, hyphens, underscores only."
+fi
+
+# Check dependencies
+check_deps() {
+    local missing=()
+    command -v git &>/dev/null || missing+=("git")
+    command -v gh &>/dev/null || missing+=("gh (GitHub CLI)")
+    command -v bd &>/dev/null || missing+=("bd (Beads)")
+    
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        error "Missing dependencies: ${missing[*]}"
+    fi
+    
+    if [[ "$NO_PUSH" == false ]]; then
+        gh auth status &>/dev/null || error "GitHub CLI not authenticated. Run: gh auth login"
+    fi
+}
+
+check_deps
+
+# Create project directory
+[[ -d "$PROJECT_NAME" ]] && error "Directory '$PROJECT_NAME' already exists"
+
+info "Creating project: $PROJECT_NAME"
+mkdir -p "$PROJECT_NAME"
+cd "$PROJECT_NAME"
+
+# Initialize git
+git init -q
+log "Initialized git repository"
+
+# Create .gitignore
+cat > .gitignore <<'EOF'
+# Beads
+.beads/beads.db
+.beads/beads.db-*
+.beads/bd.sock
+.beads/bd.pipe
+.beads/.exclusive-lock
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+*.swp
+*~
+.idea/
+.vscode/
+EOF
+log "Created .gitignore"
+
+# Create .example.env
+cat > .example.env <<'EOF'
+# Copy to .env and fill in values
+# cp .example.env .env
+
+# ANTHROPIC_API_KEY=
+# DATABASE_URL=
+EOF
+log "Created .example.env"
+
+# Create CLAUDE.md
+cat > CLAUDE.md <<'EOF'
+# Claude Code Instructions
+
+BEFORE ANYTHING ELSE: run `bd onboard` and follow the instructions.
+
+## Project Overview
+
+<!-- Describe your project here -->
+
+## Development Guidelines
+
+<!-- Add your coding standards, architecture notes, etc. -->
+EOF
+log "Created CLAUDE.md"
+
+# Create README.md
+cat > README.md <<EOF
+# $PROJECT_NAME
+
+## Setup
+
+\`\`\`bash
+cp .example.env .env
+# Edit .env with your values
+\`\`\`
+
+## Development
+
+<!-- Add development instructions -->
+EOF
+log "Created README.md"
+
+# Initialize Beads
+bd init --quiet
+log "Initialized Beads issue tracker"
+
+# Initial commit
+git add -A
+git commit -q -m "Initial project setup"
+log "Created initial commit"
+
+# GitHub repo creation
+if [[ "$NO_PUSH" == false ]]; then
+    info "Creating GitHub repository..."
+    
+    GH_ARGS=(create "$PROJECT_NAME" --source=. --push)
+    [[ "$PRIVATE" == true ]] && GH_ARGS+=(--private) || GH_ARGS+=(--public)
+    [[ -n "$DESCRIPTION" ]] && GH_ARGS+=(--description "$DESCRIPTION")
+    
+    gh repo "${GH_ARGS[@]}"
+    log "Created and pushed to GitHub"
+fi
+
+echo ""
+log "Project '$PROJECT_NAME' initialized successfully!"
+info "Next steps:"
+echo "    cd $PROJECT_NAME"
+echo "    # Start coding with Claude Code"
