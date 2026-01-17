@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION=9
+VERSION=10
 
 # Colors
 RED='\033[0;31m'
@@ -261,6 +261,7 @@ log "Configured Beads sync branch"
 
 # Start daemon with auto-sync (after sync branch is fully configured)
 bd daemon stop . 2>/dev/null || true  # Stop any existing daemon
+sleep 1  # Wait for daemon to fully terminate
 bd daemon start --auto-commit --auto-push || warn "Daemon start failed - run: bd daemon start --auto-commit --auto-push"
 
 # Create initial epic
