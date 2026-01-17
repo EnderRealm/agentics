@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION=11
+VERSION=12
 
 # Colors
 RED='\033[0;31m'
@@ -259,17 +259,6 @@ bd migrate sync beads-sync --quiet
 bd hooks install --quiet 2>/dev/null || true
 log "Configured Beads sync branch"
 
-# Start daemon with auto-sync (after sync branch is fully configured)
-bd daemon stop . 2>/dev/null || true
-# Wait for daemon to fully terminate (max 10 attempts)
-for i in {1..10}; do
-    if bd daemon start --auto-commit --auto-push 2>/dev/null; then
-        break
-    fi
-    sleep 0.5
-done
-bd daemon status --quiet 2>/dev/null || warn "Daemon start failed - run: bd daemon start --auto-commit --auto-push"
-
 # Create initial epic
 bd create "Brainstorm ${PROJECT_NAME} plan" --type epic --quiet 2>/dev/null || true
 log "Created initial epic"
@@ -278,4 +267,5 @@ echo ""
 log "Project '$PROJECT_NAME' initialized successfully!"
 info "Next steps:"
 echo "    cd $PROJECT_NAME"
+echo "    bd daemon start --auto-commit --auto-push"
 echo "    # Start coding with Claude Code"
