@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION=15
+VERSION=16
 
 # Colors
 RED='\033[0;31m'
@@ -98,12 +98,11 @@ check_deps() {
     local missing=()
     command -v git &>/dev/null || missing+=("git")
     command -v gh &>/dev/null || missing+=("gh (GitHub CLI)")
-    command -v bd &>/dev/null || missing+=("bd (Beads)")
-    
+
     if [[ ${#missing[@]} -gt 0 ]]; then
         error "Missing dependencies: ${missing[*]}"
     fi
-    
+
     if [[ "$NO_PUSH" == false ]]; then
         gh auth status &>/dev/null || error "GitHub CLI not authenticated. Run: gh auth login"
     fi
@@ -125,7 +124,7 @@ log "Initialized git repository"
 
 # Create .gitignore
 cat > .gitignore <<'EOF'
-# Beads runtime (db and sockets are local-only)
+# Beads (for when you add beads later)
 .beads/beads.db
 .beads/beads.db-*
 .beads/*.sock
@@ -164,8 +163,6 @@ log "Created .example.env"
 cat > CLAUDE.md <<'EOF'
 # Claude Code Instructions
 
-BEFORE ANYTHING ELSE: run `bd onboard` and follow the instructions.
-
 ## Project Overview
 
 <!-- Describe your project here -->
@@ -193,25 +190,25 @@ cp .example.env .env
 EOF
 log "Created README.md"
 
-# GitHub repo creation (before bd init so fingerprint captures remote)
+# GitHub repo creation
 if [[ "$NO_PUSH" == false ]]; then
     info "Creating GitHub repository..."
-    
+
     # Get user and orgs
     GH_USER=$(gh api user --jq '.login')
-    
+
     if [[ -n "$ORG" ]]; then
         # Use provided org
         REPO_OWNER="$ORG"
     else
         ORGS=$(gh api user/orgs --jq '.[].login' 2>/dev/null || true)
-        
+
         # Build options
         OPTIONS=("$GH_USER (personal)")
         while IFS= read -r org; do
             [[ -n "$org" ]] && OPTIONS+=("$org")
         done <<< "$ORGS"
-        
+
         # Prompt if multiple options
         if [[ ${#OPTIONS[@]} -gt 1 ]]; then
             echo ""
@@ -222,7 +219,7 @@ if [[ "$NO_PUSH" == false ]]; then
             echo ""
             read -rp "Choice [1]: " CHOICE
             CHOICE=${CHOICE:-1}
-            
+
             if [[ "$CHOICE" -eq 1 ]]; then
                 REPO_OWNER="$GH_USER"
             else
@@ -232,45 +229,36 @@ if [[ "$NO_PUSH" == false ]]; then
             REPO_OWNER="$GH_USER"
         fi
     fi
-    
+
     GH_ARGS=(create "${REPO_OWNER}/${PROJECT_NAME}" --source=. --remote=origin)
     [[ "$PRIVATE" == true ]] && GH_ARGS+=(--private) || GH_ARGS+=(--public)
     [[ -n "$DESCRIPTION" ]] && GH_ARGS+=(--description "$DESCRIPTION")
-    
+
     gh repo "${GH_ARGS[@]}"
-    
+
     # Force SSH remote
     git remote set-url origin "git@github.com:${REPO_OWNER}/${PROJECT_NAME}.git"
     log "Created GitHub repository (SSH)"
 fi
 
-# Initialize Beads
-bd init --quiet --sandbox
-log "Initialized Beads"
-
-# Initial commit (required before creating beads-sync branch)
+# Initial commit
 git add -A
 git commit -q -m "Initial project setup"
 log "Created initial commit"
 
-# Push main branch first (required for beads-sync to have upstream)
+# Push to GitHub
 if [[ "$NO_PUSH" == false ]]; then
     git push -u origin main -q
     log "Pushed to GitHub"
 fi
 
-# Set up beads sync branch (requires initial commit to exist)
-bd migrate sync beads-sync --quiet --sandbox
-bd hooks install --quiet --sandbox 2>/dev/null || true
-log "Configured Beads sync branch"
-
-# Create initial epic
-bd create "Brainstorm ${PROJECT_NAME} plan" --type epic --quiet --sandbox 2>/dev/null || true
-log "Created initial epic"
-
 echo ""
 log "Project '$PROJECT_NAME' initialized successfully!"
 info "Next steps:"
 echo "    cd $PROJECT_NAME"
+echo ""
+echo "    # To add Beads issue tracking:"
+echo "    bd init"
+echo "    bd migrate sync beads-sync"
+echo "    bd hooks install"
 echo "    bd daemon start --auto-commit --auto-push"
-echo "    # Start coding with Claude Code"
