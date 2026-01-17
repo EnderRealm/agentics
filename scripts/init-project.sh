@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION=17
+VERSION=18
 
 # Colors
 RED='\033[0;31m'
@@ -98,6 +98,7 @@ check_deps() {
     local missing=()
     command -v git &>/dev/null || missing+=("git")
     command -v gh &>/dev/null || missing+=("gh (GitHub CLI)")
+    command -v tk &>/dev/null || missing+=("tk (ticket: brew tap wedow/tools && brew install ticket)")
 
     if [[ ${#missing[@]} -gt 0 ]]; then
         error "Missing dependencies: ${missing[*]}"
@@ -154,6 +155,8 @@ log "Created .example.env"
 # Create CLAUDE.md
 cat > CLAUDE.md <<'EOF'
 # Claude Code Instructions
+
+This project uses `tk` (ticket) for task management. Run `tk help` for commands.
 
 ## Project Overview
 
@@ -233,6 +236,10 @@ if [[ "$NO_PUSH" == false ]]; then
     log "Created GitHub repository (SSH)"
 fi
 
+# Create initial ticket
+tk create "Brainstorm ${PROJECT_NAME} plan" --type epic -d "Define project goals, architecture, and roadmap" >/dev/null
+log "Created initial ticket"
+
 # Initial commit
 git add -A
 git commit -q -m "Initial project setup"
@@ -248,4 +255,6 @@ echo ""
 log "Project '$PROJECT_NAME' initialized successfully!"
 info "Next steps:"
 echo "    cd $PROJECT_NAME"
+echo "    tk ls              # View tickets"
+echo "    tk create \"Task\"   # Create a ticket"
 echo "    # Start coding with Claude Code"
