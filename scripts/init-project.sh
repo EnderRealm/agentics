@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION=18
+VERSION=19
 
 # Colors
 RED='\033[0;31m'
@@ -156,7 +156,7 @@ log "Created .example.env"
 cat > CLAUDE.md <<'EOF'
 # Claude Code Instructions
 
-This project uses `tk` (ticket) for task management. Run `tk help` for commands.
+This project uses a CLI ticket system for task management. Run `tk help` when you need to use it.
 
 ## Project Overview
 
