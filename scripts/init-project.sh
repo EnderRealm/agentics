@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION=5
+VERSION=6
 
 # Colors
 RED='\033[0;31m'
@@ -265,7 +265,7 @@ bd daemon start --auto-commit --auto-push --quiet 2>/dev/null || true
 log "Configured Beads sync branch"
 
 # Create initial epic
-bd epic create "Brainstorm ${PROJECT_NAME} plan" --quiet 2>/dev/null || true
+bd create "Brainstorm ${PROJECT_NAME} plan" --type epic --quiet 2>/dev/null || true
 log "Created initial epic"
 
 echo ""
