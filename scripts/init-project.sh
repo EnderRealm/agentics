@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION=6
+VERSION=7
 
 # Colors
 RED='\033[0;31m'
@@ -125,12 +125,8 @@ log "Initialized git repository"
 
 # Create .gitignore
 cat > .gitignore <<'EOF'
-# Beads
-.beads/beads.db
-.beads/beads.db-*
-.beads/bd.sock
-.beads/bd.pipe
-.beads/.exclusive-lock
+# Beads (tracked on beads-sync branch, not main)
+.beads/
 
 # Environment
 .env
