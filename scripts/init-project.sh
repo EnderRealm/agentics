@@ -184,8 +184,27 @@ cp .example.env .env
 EOF
 log "Created README.md"
 
-# Initialize Beads
+# GitHub repo creation (before bd init so fingerprint captures remote)
+if [[ "$NO_PUSH" == false ]]; then
+    info "Creating GitHub repository..."
+    
+    GH_ARGS=(create "$PROJECT_NAME" --source=. --remote=origin)
+    [[ "$PRIVATE" == true ]] && GH_ARGS+=(--private) || GH_ARGS+=(--public)
+    [[ -n "$DESCRIPTION" ]] && GH_ARGS+=(--description "$DESCRIPTION")
+    
+    gh repo "${GH_ARGS[@]}"
+    
+    # Force SSH remote
+    GH_USER=$(gh api user --jq '.login')
+    git remote set-url origin "git@github.com:${GH_USER}/${PROJECT_NAME}.git"
+    log "Created GitHub repository (SSH)"
+fi
+
+# Initialize Beads (after remote exists)
 bd init --quiet
+bd hooks install --quiet 2>/dev/null || true
+bd migrate sync beads-sync --quiet 2>/dev/null || true
+bd export --quiet 2>/dev/null || true
 log "Initialized Beads issue tracker"
 
 # Initial commit
@@ -193,16 +212,10 @@ git add -A
 git commit -q -m "Initial project setup"
 log "Created initial commit"
 
-# GitHub repo creation
+# Push to GitHub
 if [[ "$NO_PUSH" == false ]]; then
-    info "Creating GitHub repository..."
-    
-    GH_ARGS=(create "$PROJECT_NAME" --source=. --push)
-    [[ "$PRIVATE" == true ]] && GH_ARGS+=(--private) || GH_ARGS+=(--public)
-    [[ -n "$DESCRIPTION" ]] && GH_ARGS+=(--description "$DESCRIPTION")
-    
-    gh repo "${GH_ARGS[@]}"
-    log "Created and pushed to GitHub"
+    git push -u origin main -q
+    log "Pushed to GitHub"
 fi
 
 echo ""
