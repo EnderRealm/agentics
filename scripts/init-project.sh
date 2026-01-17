@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION=16
+VERSION=17
 
 # Colors
 RED='\033[0;31m'
@@ -124,14 +124,6 @@ log "Initialized git repository"
 
 # Create .gitignore
 cat > .gitignore <<'EOF'
-# Beads (for when you add beads later)
-.beads/beads.db
-.beads/beads.db-*
-.beads/*.sock
-.beads/*.pipe
-.beads/*.lock
-.beads/daemon.log
-
 # Environment
 .env
 .env.local
@@ -256,9 +248,4 @@ echo ""
 log "Project '$PROJECT_NAME' initialized successfully!"
 info "Next steps:"
 echo "    cd $PROJECT_NAME"
-echo ""
-echo "    # To add Beads issue tracking:"
-echo "    bd init"
-echo "    bd migrate sync beads-sync"
-echo "    bd hooks install"
-echo "    bd daemon start --auto-commit --auto-push"
+echo "    # Start coding with Claude Code"
