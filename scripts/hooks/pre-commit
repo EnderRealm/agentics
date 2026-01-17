@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Auto-increment VERSION in init-project.sh when it's modified
+
+SCRIPT="scripts/init-project.sh"
+
+# Check if init-project.sh is staged
+if git diff --cached --name-only | grep -q "^${SCRIPT}$"; then
+    # Get current version from the staged file
+    current_version=$(git show ":${SCRIPT}" | grep -m1 '^VERSION=' | cut -d= -f2)
+
+    if [[ -n "$current_version" ]]; then
+        new_version=$((current_version + 1))
+
+        # Update VERSION in working tree
+        if [[ "$(uname)" == "Darwin" ]]; then
+            sed -i '' "s/^VERSION=${current_version}$/VERSION=${new_version}/" "$SCRIPT"
+        else
+            sed -i "s/^VERSION=${current_version}$/VERSION=${new_version}/" "$SCRIPT"
+        fi
+
+        # Re-stage the file with the new version
+        git add "$SCRIPT"
+
+        echo "[hook] Bumped init-project.sh VERSION: ${current_version} → ${new_version}"
+    fi
+fi

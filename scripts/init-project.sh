@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# this is a small change
+VERSION=2
 
 # Colors
 RED='\033[0;31m'
@@ -15,10 +15,12 @@ warn() { echo -e "${YELLOW}[!]${NC} $1"; }
 error() { echo -e "${RED}[✗]${NC} $1" >&2; exit 1; }
 info() { echo -e "${BLUE}[i]${NC} $1"; }
 
-SCRIPT_REPO="https://raw.githubusercontent.com/EnderRealm/agentics/main/init-project.sh"
+SCRIPT_REPO="https://raw.githubusercontent.com/EnderRealm/agentics/main/scripts/init-project.sh"
 
 usage() {
     cat <<EOF
+init-project v${VERSION}
+
 Usage: $(basename "$0") <project-name> [options]
 
 Options:
@@ -38,24 +40,17 @@ EOF
 }
 
 auto_update() {
-    local tmp remote_hash local_hash
+    local tmp remote_version
     tmp=$(mktemp)
-    
+
     if curl -fsSL "$SCRIPT_REPO" -o "$tmp" 2>/dev/null; then
         if [[ -s "$tmp" ]]; then
-            # macOS uses shasum, Linux uses sha256sum
-            if command -v sha256sum &>/dev/null; then
-                remote_hash=$(sha256sum "$tmp" | cut -d' ' -f1)
-                local_hash=$(sha256sum "$0" | cut -d' ' -f1)
-            else
-                remote_hash=$(shasum -a 256 "$tmp" | cut -d' ' -f1)
-                local_hash=$(shasum -a 256 "$0" | cut -d' ' -f1)
-            fi
-            
-            if [[ "$remote_hash" != "$local_hash" ]]; then
+            remote_version=$(grep -m1 '^VERSION=' "$tmp" | cut -d= -f2)
+
+            if [[ -n "$remote_version" ]] && [[ "$remote_version" -gt "$VERSION" ]]; then
+                warn "Updating v${VERSION} → v${remote_version}..."
                 mv "$tmp" "$0"
                 chmod +x "$0"
-                warn "Updated to new version. Re-running..."
                 exec "$0" --no-update "$@"
             fi
         fi
@@ -119,6 +114,7 @@ check_deps
 # Create project directory
 [[ -d "$PROJECT_NAME" ]] && error "Directory '$PROJECT_NAME' already exists"
 
+info "init-project v${VERSION}"
 info "Creating project: $PROJECT_NAME"
 mkdir -p "$PROJECT_NAME"
 cd "$PROJECT_NAME"
