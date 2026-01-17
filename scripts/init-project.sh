@@ -21,6 +21,7 @@ Usage: $(basename "$0") <project-name> [options]
 
 Options:
     --private       Create private GitHub repo (default: public)
+    --org NAME      Create repo under organization (skips prompt)
     --no-push       Skip GitHub repo creation and push
     --no-update     Skip auto-update check
     --description   Repository description
@@ -29,6 +30,7 @@ Options:
 Examples:
     $(basename "$0") my-project
     $(basename "$0") my-project --private --description "My awesome project"
+    $(basename "$0") my-project --org MyCompany
 EOF
     exit 0
 }
@@ -39,8 +41,14 @@ auto_update() {
     
     if curl -fsSL "$SCRIPT_REPO" -o "$tmp" 2>/dev/null; then
         if [[ -s "$tmp" ]]; then
-            remote_hash=$(sha256sum "$tmp" | cut -d' ' -f1)
-            local_hash=$(sha256sum "$0" | cut -d' ' -f1)
+            # macOS uses shasum, Linux uses sha256sum
+            if command -v sha256sum &>/dev/null; then
+                remote_hash=$(sha256sum "$tmp" | cut -d' ' -f1)
+                local_hash=$(sha256sum "$0" | cut -d' ' -f1)
+            else
+                remote_hash=$(shasum -a 256 "$tmp" | cut -d' ' -f1)
+                local_hash=$(shasum -a 256 "$0" | cut -d' ' -f1)
+            fi
             
             if [[ "$remote_hash" != "$local_hash" ]]; then
                 mv "$tmp" "$0"
@@ -58,6 +66,7 @@ PRIVATE=false
 NO_PUSH=false
 NO_UPDATE=false
 DESCRIPTION=""
+ORG=""
 ORIGINAL_ARGS=("$@")
 
 # Parse args
@@ -69,6 +78,7 @@ while [[ $# -gt 0 ]]; do
         --private) PRIVATE=true; shift ;;
         --no-push) NO_PUSH=true; shift ;;
         --no-update) NO_UPDATE=true; shift ;;
+        --org) ORG="$2"; shift 2 ;;
         --description) DESCRIPTION="$2"; shift 2 ;;
         -h|--help) usage ;;
         -*) error "Unknown option: $1" ;;
@@ -188,15 +198,50 @@ log "Created README.md"
 if [[ "$NO_PUSH" == false ]]; then
     info "Creating GitHub repository..."
     
-    GH_ARGS=(create "$PROJECT_NAME" --source=. --remote=origin)
+    # Get user and orgs
+    GH_USER=$(gh api user --jq '.login')
+    
+    if [[ -n "$ORG" ]]; then
+        # Use provided org
+        REPO_OWNER="$ORG"
+    else
+        ORGS=$(gh api user/orgs --jq '.[].login' 2>/dev/null || true)
+        
+        # Build options
+        OPTIONS=("$GH_USER (personal)")
+        while IFS= read -r org; do
+            [[ -n "$org" ]] && OPTIONS+=("$org")
+        done <<< "$ORGS"
+        
+        # Prompt if multiple options
+        if [[ ${#OPTIONS[@]} -gt 1 ]]; then
+            echo ""
+            info "Select account/organization:"
+            for i in "${!OPTIONS[@]}"; do
+                echo "    $((i+1))) ${OPTIONS[$i]}"
+            done
+            echo ""
+            read -rp "Choice [1]: " CHOICE
+            CHOICE=${CHOICE:-1}
+            
+            if [[ "$CHOICE" -eq 1 ]]; then
+                REPO_OWNER="$GH_USER"
+            else
+                REPO_OWNER="${OPTIONS[$((CHOICE-1))]}"
+            fi
+        else
+            REPO_OWNER="$GH_USER"
+        fi
+    fi
+    
+    GH_ARGS=(create "${REPO_OWNER}/${PROJECT_NAME}" --source=. --remote=origin)
     [[ "$PRIVATE" == true ]] && GH_ARGS+=(--private) || GH_ARGS+=(--public)
     [[ -n "$DESCRIPTION" ]] && GH_ARGS+=(--description "$DESCRIPTION")
     
     gh repo "${GH_ARGS[@]}"
     
     # Force SSH remote
-    GH_USER=$(gh api user --jq '.login')
-    git remote set-url origin "git@github.com:${GH_USER}/${PROJECT_NAME}.git"
+    git remote set-url origin "git@github.com:${REPO_OWNER}/${PROJECT_NAME}.git"
     log "Created GitHub repository (SSH)"
 fi
 
